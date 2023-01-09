@@ -12,8 +12,7 @@
     :license: CC0 1.0, see LICENSE file for details
 """
 
-<<<<<<< HEAD
 __version__ = "0.1.0"
-=======
+#=======
 __version__ = "0.2.0"
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
+

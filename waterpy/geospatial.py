@@ -131,19 +131,14 @@ def bbox_to_pixel_offsets(gt, bbox):
     ysize = y2 - y1
     return x1, y1, xsize, ysize
 
-<<<<<<< HEAD
-=======
-
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
 def karst_detection(raster, shp):
     """
     :param raster: Raster class object built from karst raster.
     :param shp: SHP class object from entire basin.
     :return: Shp.karst_flag will be triggered, or it won't.
-<<<<<<< HEAD
+
     this feature is currently in pre-beta
-=======
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
+
     """
 
     r_data = raster.data
@@ -197,10 +192,6 @@ def karst_detection(raster, shp):
     else:
         return 0
 
-<<<<<<< HEAD
-=======
-
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
 def zonal_stats(raster, shp):
     """
     Converts a shp file into a raster mask.  Masks off a polygon and extracts statistics from the area within the mask.
@@ -352,10 +343,6 @@ def zonal_area(raster, shp):
 
     return float(masked.count() * 100)
 
-<<<<<<< HEAD
-=======
-
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
 def twi_bins(raster, shp, nbins=30):
 
     r_data = raster.data
@@ -441,10 +428,7 @@ def twi_bins(raster, shp, nbins=30):
 
     return df
 
-<<<<<<< HEAD
-=======
 
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
 def simplify(src):
 
     driver = ogr.GetDriverByName("ESRI Shapefile")
@@ -469,10 +453,6 @@ def simplify(src):
     out_shp = dbShp(path=out_path)
     return out_shp
 
-<<<<<<< HEAD
-=======
-
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
 def clip(src, shp):
     """
     :param src: shapefile class with karst polygons.  sinks.shp in db.
@@ -519,9 +499,6 @@ def clip(src, shp):
     karstshp = dbShp(path=out_path)
 
     return karstshp
-
-<<<<<<< HEAD
-=======
 
 def erase(src, diff):
     # not working currently.
