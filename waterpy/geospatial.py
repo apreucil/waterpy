@@ -269,10 +269,6 @@ def zonal_stats(raster, shp):
     stats.append(feature_stats)
     return feature_stats['mean']
 
-<<<<<<< HEAD
-=======
-
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
 def zonal_area(raster, shp):
     """
     Converts a shp file into a raster mask.  Masks off a polygon and extracts statistics from the area within the mask.
@@ -584,8 +580,6 @@ def dissolve_polygon(raster, shp):
     target_ds = None
     return flat
 
-
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
 def deg_lat(shp):
     in_srs = osr.SpatialReference()
     in_srs.ImportFromProj4(shp.prj4)
@@ -598,19 +592,11 @@ def deg_lat(shp):
 
     return point.GetX()
 
-<<<<<<< HEAD
-=======
-
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
 def get_area(shp):
     geom = shp.feature.GetGeometryRef()
     area = geom.GetArea()
     return area
 
-<<<<<<< HEAD
-=======
-
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
 def characteristics(db_rasters, shp):
     characteristics_out = {
         "scaling_parameter": {zonal_stats(db_rasters['scaling_parameter'], shp) / 100
@@ -670,10 +656,6 @@ def characteristics(db_rasters, shp):
 
     return df
 
-<<<<<<< HEAD
-=======
-
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
 def near(array, value):
     """
     array: 2d Array of values taken from daymet NetCDF input file.
@@ -686,10 +668,6 @@ def near(array, value):
     idx = (abs(array - value)).argmin()
     return idx
 
-<<<<<<< HEAD
-=======
-
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
 def tile_number(shp, tilepoly):
     x, y = shp.daymet_x, shp.daymet_y
     layer = tilepoly.lyr_0
@@ -702,10 +680,6 @@ def tile_number(shp, tilepoly):
     id = poly_json["properties"]['Id']
     return id
 
-<<<<<<< HEAD
-=======
-
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
 def build_prcp(f, x, y):
     """
     This needs a docstring!
@@ -745,10 +719,6 @@ def build_prcp(f, x, y):
 
     return prcp_ts
 
-<<<<<<< HEAD
-=======
-
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
 def build_temps(f, x, y):
     """
     This also needs a docstring.
@@ -824,10 +794,9 @@ if __name__ == "__main__":
     # shp = Shp(path=r'path\\to\\shp')
     # timeseries = True
 
-<<<<<<< HEAD
-=======
+
     shp.karst_flag = karst_detection(karst_raster, shp)
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
+
     out_df = characteristics(db_rasters, shp)
     out_twi = twi_bins(db_rasters["twi"], shp)
 
@@ -859,18 +828,12 @@ if __name__ == "__main__":
         climate_ts.to_csv("geo_input//timeseries.csv")
 
         # Hacking csv file a bit.  There's probably a better solution.
-<<<<<<< HEAD
-=======
 
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
         climate_ts = pd.read_csv("geo_input//timeseries.csv")
         climate_ts['date'] = pd.to_datetime(climate_ts["date"], format='%Y/%m/%d')
         climate_ts = climate_ts.set_index("date")
         if'Unnamed: 0' in climate_ts.columns:
             climate_ts = climate_ts.drop(columns=['Unnamed: 0'])
-<<<<<<< HEAD
-=======
 
->>>>>>> b21aa33c4be91bdba14a980db6e5ac9e0ce56529
         climate_ts.to_csv("geo_input//timeseries.csv")
 

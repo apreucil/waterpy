@@ -41,7 +41,7 @@ def waterpy(configfile, options):
     parameters, timeseries, twi, database = read_input_files(config_data)
     preprocessed_data = preprocess(config_data, parameters, timeseries, twi)
     topmodel_data = run_topmodel(config_data, parameters, timeseries, twi, preprocessed_data)
-    postprocess(config_data, timeseries, preprocessed_data, topmodel_data)
+    # postprocess(config_data, timeseries, preprocessed_data, topmodel_data)
 
 
 def read_input_files(config_data):
