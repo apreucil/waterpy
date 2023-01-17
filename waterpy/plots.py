@@ -8,7 +8,7 @@ import matplotlib.dates as mdates
 import mpld3
 from pandas.plotting import register_matplotlib_converters
 
-from waterpy import hydrocalcs
+import hydrocalcs
 
 
 # Register for pandas

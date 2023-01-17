@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from .exceptions import (TimeseriesFileErrorInvalidHeader,
+from exceptions import (TimeseriesFileErrorInvalidHeader,
                          TimeseriesFileErrorMissingDates,
                          TimeseriesFileErrorMissingValues,
                          TimeseriesFileErrorInvalidTimestep)
@@ -20,8 +20,8 @@ def read(filepath):
     :rtype: Pandas.DataFrame
     """
     try:
-        with open(filepath, "r") as f:
-            data = read_in(f)
+        data = pd.read_csv(filepath,index_col=['date'],parse_dates=['date'])
+        data.columns = ['temperature','precipitation','flow_observed']
         return data
     except TimeseriesFileErrorInvalidHeader as err:
         print(err)

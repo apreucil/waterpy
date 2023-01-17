@@ -17,14 +17,8 @@ def main():
         """
 import pandas as pd
 from pathlib import PurePath
-from waterpy import (hydrocalcs,
-                     modelconfigfile,
-                     parametersfile,
-                     timeseriesfile,
-                     twifile,
-                     plots,
-                     report)
-from waterpy.topmodel import Topmodel
+import hydrocalcs,modelconfigfile,parametersfile,timeseriesfile,twifile,plots,report
+from topmodel import Topmodel
 
 
 def waterpy(configfile, options):
@@ -41,7 +35,7 @@ def waterpy(configfile, options):
     parameters, timeseries, twi, database = read_input_files(config_data)
     preprocessed_data = preprocess(config_data, parameters, timeseries, twi)
     topmodel_data = run_topmodel(config_data, parameters, timeseries, twi, preprocessed_data)
-    # postprocess(config_data, timeseries, preprocessed_data, topmodel_data)
+    postprocess(config_data, timeseries, preprocessed_data, topmodel_data)
 
 
 def read_input_files(config_data):
@@ -147,7 +141,7 @@ def preprocess(config_data, parameters, timeseries, twi):
         precip_minus_pet = timeseries["precipitation"].to_numpy() - pet
     # Calculate the twi weighted mean
     twi_weighted_mean = hydrocalcs.weighted_mean(values=twi["twi"],
-                                                 weights=twi["proportion"]) / parameters["basin"]["twi_adj"]["value"]
+                                                 weights=twi["proportion"]) / parameters["land_type"]["twi_adj"]["value"]
 
     # Adjust the scaling parameter by the spatial coefficient
     scaling_parameter_adjusted = (
@@ -204,19 +198,23 @@ def run_topmodel(config_data, parameters, timeseries, twi, preprocessed_data):
         ),
         macropore_fraction=parameters["land_type"]["macropore_fraction"]["value"],
         soil_depth_total=parameters["basin"]["soil_depth_total"]["value"],
-        rooting_depth_factor=parameters["land_type"]["rooting_depth_factor"]["value"],
+        # rooting_depth_factor=parameters["land_type"]["rooting_depth_factor"]["value"],
+        soil_depth_roots=parameters["basin"]["soil_depth_roots"]["value"],
         field_capacity_fraction=parameters["basin"]["field_capacity_fraction"]["value"],
         porosity_fraction=parameters["basin"]["porosity_fraction"]["value"],
-        wilting_point_fraction=parameters["basin"]["wilting_point_fraction"]["value"],
+        # wilting_point_fraction=parameters["basin"]["wilting_point_fraction"]["value"], # REMOVED BY AP, 1/17/23
+        water_holding_capacity=parameters["basin"]["water_holding_capacity"]["value"],
         basin_area_total=parameters["basin"]["basin_area_total"]["value"],
         impervious_area_fraction=parameters["basin"]["impervious_area_fraction"]["value"] / 100,
         impervious_curve_number=parameters["land_type"]["impervious_curve_number"]["value"],
         flow_initial=parameters["basin"]["flow_initial"]["value"],
-        twi_adj=parameters["basin"]["twi_adj"]["value"],
-        eff_imp=parameters["basin"]["eff_imp"]["value"],
-        et_exp_dorm=parameters["basin"]["et_exp_dorm"]["value"],
-        et_exp_grow=parameters["basin"]["et_exp_grow"]["value"],
-        grow_trigger=parameters["basin"]["grow_trigger"]["value"],
+        twi_adj=parameters["land_type"]["twi_adj"]["value"],
+        eff_imp=parameters["land_type"]["eff_imp"]["value"],
+        # HARD CODED ################ WARNING ################# WARNING ############### WARNING ######
+        et_exp_dorm=0.5,
+        et_exp_grow=0.5,
+        grow_trigger=15,
+        ################# WARNING ############# WARNING ################### WARNING ##################
         riparian_area=parameters["basin"]["rip_area"]["value"],
         twi_values=twi["twi"].to_numpy(),
         twi_saturated_areas=twi["proportion"].to_numpy(),

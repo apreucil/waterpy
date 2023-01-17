@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from .exceptions import (TwiFileErrorInvalidHeader,
+from exceptions import (TwiFileErrorInvalidHeader,
                          TwiFileErrorMissingValues,
                          TwiFileErrorInvalidProportion)
 

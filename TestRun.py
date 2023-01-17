@@ -5,8 +5,10 @@ Created on Fri Jan  6 11:50:04 2023
 @author: AnthonyPreucil
 """
 
+import sys
 # Run Water
-from waterpy.main import waterpy
+sys.path.append(r'D:\waterpy\waterpy')
+from main import waterpy
 import pandas as pd
 import numpy as np
 import os
@@ -53,7 +55,10 @@ for f in os.listdir(path_to_inputs):
         lu_df['xml'] = lu_df.index.map(xml_to_py_key.set_index('Name From waterpy sample')['Name From WATER Original XML'])
 
         lu_df['value'] = lu_df['xml'].map(node_df[node_df.SimulID==1].set_index('AttName')['AttMeanVal'])
+        lu_df['units'] = np.nan
+        lu_df['description'] = np.nan
         lu_df.drop('xml',axis=1).to_csv(os.path.join(output_path,f))
+        
         
     elif 'agricultural' in f:
         print ('Agriculture Params')
@@ -63,6 +68,8 @@ for f in os.listdir(path_to_inputs):
         ag_df['xml'] = ag_df.index.map(xml_to_py_key.set_index('Name From waterpy sample')['Name From WATER Original XML'])
 
         ag_df['value'] = ag_df['xml'].map(node_df[node_df.SimulID==2].set_index('AttName')['AttMeanVal'])
+        ag_df['units'] = np.nan
+        ag_df['description'] = np.nan
         ag_df.drop('xml',axis=1).to_csv(os.path.join(output_path,f))
         
     elif 'developed' in f:
@@ -73,26 +80,47 @@ for f in os.listdir(path_to_inputs):
         dev_df['xml'] = dev_df.index.map(xml_to_py_key.set_index('Name From waterpy sample')['Name From WATER Original XML'])
 
         dev_df['value'] = dev_df['xml'].map(node_df[node_df.SimulID==3].set_index('AttName')['AttMeanVal'])
+        dev_df['units'] = np.nan
+        dev_df['description'] = np.nan
         dev_df.drop('xml',axis=1).to_csv(os.path.join(output_path,f))
+        
     elif 'characteristics' in f:
         print ('Basin Characteristics Params')
         basin_df.index = df.name
         
         # use map function to map values of node_df to basin_df
+        
+        # Forest
         basin_df['xml'] = basin_df.index.map(xml_to_py_key.set_index('Name From waterpy sample')['Name From WATER Original XML'])
-
         basin_df['value'] = basin_df['xml'].map(node_df[node_df.SimulID==1].set_index('AttName')['AttMeanVal'])
-        basin_df.drop('xml',axis=1).to_csv(os.path.join(output_path,f[:-4]+'_forest.csv'))
-        
-        basin_df['xml'] = basin_df.index.map(xml_to_py_key.set_index('Name From waterpy sample')['Name From WATER Original XML'])
+        basin_df.loc['channel_length_max'] = 2
+        basin_df.loc['channel_velocity_avg'] = 10
+        basin_df.loc['flow_initial'] = 0.1
+        basin_df.loc['rip_area'] = basin_df.loc['stream area'].value + basin_df.loc['lake_area'].value
+        basin_df['units'] = np.nan
+        basin_df['description'] = np.nan
+        basin_df.dropna(subset=['xml']).drop('xml',axis=1).to_csv(os.path.join(output_path,f[:-4]+'_forest.csv'))
 
+        # Agricultural
         basin_df['value'] = basin_df['xml'].map(node_df[node_df.SimulID==2].set_index('AttName')['AttMeanVal'])
-        basin_df.drop('xml',axis=1).to_csv(os.path.join(output_path,f[:-4]+'_agricultural.csv'))
-        
-        basin_df['xml'] = basin_df.index.map(xml_to_py_key.set_index('Name From waterpy sample')['Name From WATER Original XML'])
+        basin_df.loc['channel_length_max'] = 2
+        basin_df.loc['channel_velocity_avg'] = 10
+        basin_df.loc['flow_initial'] = 0.1
+        basin_df.loc['rip_area'] = basin_df.loc['stream area'].value + basin_df.loc['lake_area'].value
+        basin_df['units'] = np.nan
+        basin_df['description'] = np.nan
+        basin_df.dropna(subset=['xml']).drop('xml',axis=1).to_csv(os.path.join(output_path,f[:-4]+'_agricultural.csv'))
 
+        # Developed
         basin_df['value'] = basin_df['xml'].map(node_df[node_df.SimulID==3].set_index('AttName')['AttMeanVal'])
-        basin_df.drop('xml',axis=1).to_csv(os.path.join(output_path,f[:-4]+'_developed.csv'))
+        # Additions/edits
+        basin_df.loc['channel_length_max'] = 2
+        basin_df.loc['channel_velocity_avg'] = 10
+        basin_df.loc['flow_initial'] = 0.1
+        basin_df.loc['rip_area'] = basin_df.loc['stream area'].value + basin_df.loc['lake_area'].value
+        basin_df['units'] = np.nan
+        basin_df['description'] = np.nan
+        basin_df.dropna(subset=['xml']).drop('xml',axis=1).to_csv(os.path.join(output_path,f[:-4]+'_developed.csv'))
     
     else:
         print ('file '+f+' does not have an input equivalent for waterpy')
@@ -191,8 +219,7 @@ for lu in ['forest','agricultural','developed']:
     lu_ini.write(content)
     lu_ini.close()
 #%% Run WATER with current set up
-'''
-configfile = r"D:\waterpy\example\input\modelconfig.ini"
+
+configfile = os.path.join(output_path,"modelconfigfile_forest.ini")
 
 waterpy(configfile,None)
-'''

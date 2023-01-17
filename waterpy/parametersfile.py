@@ -1,8 +1,8 @@
 """Module that contains functions to read a parameters file in csv format."""
 
 import csv
-
-from .exceptions import (ParametersFileErrorInvalidHeader,
+import pandas as pd
+from exceptions import (ParametersFileErrorInvalidHeader,
                          ParametersFileErrorInvalidScalingParameter,
                          ParametersFileErrorInvalidLatitude,
                          ParametersFileErrorInvalidSoilDepthTotal,
@@ -29,8 +29,7 @@ def read(filepath):
     :rtype: dict
     """
     try:
-        with open(filepath) as f:
-            data = read_in(f)
+        data = pd.read_csv(filepath,index_col=['name']).to_dict('index')
         check_data(data)
         return data
     except (ParametersFileErrorInvalidHeader,
@@ -65,7 +64,7 @@ def read_in(filestream):
     reader = csv.DictReader(filestream, fieldnames=fnames)
     header = next(reader)
     header_list = [val.lower().strip() for val in header.values()]
-    check_header(header_list, fnames)
+    # check_header(header_list, fnames)
 
     data = {}
     for row in reader:

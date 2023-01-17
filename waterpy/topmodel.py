@@ -29,9 +29,9 @@ http://dx.doi.org/10.3133/sir20155143
 import math
 import numpy as np
 
-from . import hydrocalcs
-from . import infiltration
-from . import utils
+import hydrocalcs
+import infiltration
+import utils
 
 
 
@@ -52,10 +52,12 @@ class Topmodel:
                  saturated_hydraulic_conductivity_multiplier,
                  macropore_fraction,
                  soil_depth_total,
-                 rooting_depth_factor,
+                 soil_depth_roots,
+                 # rooting_depth_factor,
                  field_capacity_fraction,
                  porosity_fraction,
-                 wilting_point_fraction,
+                 # wilting_point_fraction,
+                 water_holding_capacity,
                  basin_area_total,
                  impervious_area_fraction,
                  impervious_curve_number,
@@ -149,10 +151,11 @@ class Topmodel:
         )
         self.macropore_fraction = macropore_fraction
         self.soil_depth_total = soil_depth_total
-        self.rooting_depth_factor = rooting_depth_factor
+        # self.rooting_depth_factor = rooting_depth_factor
         self.field_capacity_fraction = field_capacity_fraction
         self.porosity_fraction = porosity_fraction
-        self.wilting_point_fraction = wilting_point_fraction
+        # self.wilting_point_fraction = wilting_point_fraction
+        self.available_water_holding_capacity = water_holding_capacity
         self.basin_area_total = basin_area_total
         self.impervious_area_fraction = impervious_area_fraction
         self.impervious_curve_number = impervious_curve_number
@@ -174,16 +177,17 @@ class Topmodel:
 
         # Soil hydraulic variables
         # Note: soil depth of root zone set to soil depth of AB horizon
-        self.soil_depth_roots = (
-            self.soil_depth_total * self.rooting_depth_factor
-        )
+        # self.soil_depth_roots = (
+        #     self.soil_depth_total * self.rooting_depth_factor
+        # )
+        self.soil_depth_roots = soil_depth_roots
         self.vertical_drainage_flux_initial = None
         self.vertical_drainage_flux = None
         self.transmissivity_saturated_max = None
         self.flow_subsurface_max = None
         self.root_zone_storage_max = None
         self.saturated_hydraulic_conductivity_max = None
-        self.available_water_holding_capacity = None
+        # self.available_water_holding_capacity = None
         self.gravity_drained_porosity = None
         self.f_param = None
 
@@ -292,9 +296,10 @@ class Topmodel:
             self.saturated_hydraulic_conductivity
             * self.saturated_hydraulic_conductivity_multiplier
         )
-        self.available_water_holding_capacity = (
-            self.field_capacity_fraction - self.wilting_point_fraction
-        )
+        # self.available_water_holding_capacity = (
+        #     self.field_capacity_fraction - self.wilting_point_fraction
+        # )
+        
         self.gravity_drained_porosity = (
             self.porosity_fraction - self.field_capacity_fraction
         )

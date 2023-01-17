@@ -10,7 +10,7 @@ three sections:
 from configparser import ConfigParser, ExtendedInterpolation
 from pathlib import Path
 
-from .exceptions import (ModelConfigFileErrorInvalidSection,
+from exceptions import (ModelConfigFileErrorInvalidSection,
                          ModelConfigFileErrorInvalidFilePath,
                          ModelConfigFileErrorInvalidOption)
 
