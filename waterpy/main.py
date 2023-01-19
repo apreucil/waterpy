@@ -295,13 +295,14 @@ def postprocess(config_data, timeseries, preprocessed_data, topmodel_data):
                      minmax=config_data["Options"].getboolean("option_max_min"))
 
     # Write report of output data
+    '''
     write_output_report(df=output_df,
                         comparison_data=output_comparison_data,
                         filename=PurePath(
                             config_data["Outputs"]["output_dir"],
                             config_data["Outputs"]["output_report"]),
                         minmax=config_data["Options"].getboolean("option_max_min"))
-
+    '''
 
 def get_output_dataframe(timeseries, preprocessed_data, topmodel_data):
     """Get the output data of interest.
@@ -538,17 +539,21 @@ def write_output_matrices_csv(config_data, timeseries, topmodel_data):
 def plot_output_data(df, comparison_data, path, minmax):
     """Plot output timeseries."""
     for key, series in df.iteritems():
+        print (key)
         filename = PurePath(path, "{}.png".format(key.split(" ")[0]))
-        plots.plot_timeseries(
-            dates=df.index.to_pydatetime(),
-            values=series.values,
-            mean=series.mean(),
-            median=series.median(),
-            mode=series.mode()[0],
-            max=series.max(),
-            min=series.min(),
-            label="{}".format(key),
-            filename=filename)
+        try:
+            plots.plot_timeseries(
+                dates=df.index.to_pydatetime(),
+                values=series.values,
+                mean=series.mean(),
+                median=series.median(),
+                mode=series.mode()[0],
+                max=series.max(),
+                min=series.min(),
+                label="{}".format(key),
+                filename=filename)
+        except:
+            print ('Unable to plot: '+key)
 
     if minmax:
         plots.plot_flow_duration_curve(

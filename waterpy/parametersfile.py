@@ -248,7 +248,8 @@ def check_field_capacity_porosity(field_capacity_fraction,
 
 
 def check_twi_adj(value):
-    if value < 1:
+    if value <= 0:
+        # NOTE: AP CHANGED THIS VALUE, was original value < 1 for invalid twi_adj
         raise ParametersFileErrorInvalidTwiAdj(value)
 
 

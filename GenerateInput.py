@@ -4,16 +4,11 @@ Created on Fri Jan  6 11:50:04 2023
 
 @author: AnthonyPreucil
 """
-
-import sys
-# Run Water
-sys.path.append(r'D:\waterpy\waterpy')
-# from main import waterpy
 import pandas as pd
 import numpy as np
 import os
 
-def main(basin):
+def input_main(basin):
     # Functionality to allow multi-processing
 #%% Set up
 
@@ -67,6 +62,11 @@ def main(basin):
             lu_df['xml'] = lu_df.index.map(xml_to_py_key.set_index('Name From waterpy sample')['Name From WATER Original XML'])
     
             lu_df['value'] = lu_df['xml'].map(node_df[node_df.SimulID==1].set_index('AttName')['AttMeanVal'])
+            lu_df.loc['snowmelt_temperature_cutoff'] = 0
+            lu_df.loc['pet_calib_coeff'] = 1.2
+            lu_df.loc['et_exp_dorm'] = 0.5
+            lu_df.loc['et_exp_grow'] = 0.5
+            lu_df.loc['grow_trigger'] = 15
             lu_df['units'] = np.nan
             lu_df['description'] = np.nan
             lu_df.drop('xml',axis=1).to_csv(os.path.join(output_path,f))
@@ -80,6 +80,11 @@ def main(basin):
             ag_df['xml'] = ag_df.index.map(xml_to_py_key.set_index('Name From waterpy sample')['Name From WATER Original XML'])
     
             ag_df['value'] = ag_df['xml'].map(node_df[node_df.SimulID==2].set_index('AttName')['AttMeanVal'])
+            ag_df.loc['snowmelt_temperature_cutoff'] = 0
+            ag_df.loc['pet_calib_coeff'] = 1.2
+            ag_df.loc['et_exp_dorm'] = 0.5
+            ag_df.loc['et_exp_grow'] = 0.5
+            ag_df.loc['grow_trigger'] = 15
             ag_df['units'] = np.nan
             ag_df['description'] = np.nan
             ag_df.drop('xml',axis=1).to_csv(os.path.join(output_path,f))
@@ -92,6 +97,11 @@ def main(basin):
             dev_df['xml'] = dev_df.index.map(xml_to_py_key.set_index('Name From waterpy sample')['Name From WATER Original XML'])
     
             dev_df['value'] = dev_df['xml'].map(node_df[node_df.SimulID==3].set_index('AttName')['AttMeanVal'])
+            dev_df.loc['snowmelt_temperature_cutoff'] = 0
+            dev_df.loc['pet_calib_coeff'] = 1.2
+            dev_df.loc['et_exp_dorm'] = 0.5
+            dev_df.loc['et_exp_grow'] = 0.5
+            dev_df.loc['grow_trigger'] = 15
             dev_df['units'] = np.nan
             dev_df['description'] = np.nan
             dev_df.drop('xml',axis=1).to_csv(os.path.join(output_path,f))

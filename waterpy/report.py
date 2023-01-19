@@ -2,7 +2,7 @@
 
 """
 
-from jinja2 import PackageLoader, Environment
+from jinja2 import PackageLoader, Environment, FileSystemLoader
 
 
 def render_report(df, plots, comparison_data, flow_duration_curve_data, filename):
@@ -13,7 +13,8 @@ def render_report(df, plots, comparison_data, flow_duration_curve_data, filename
     :param template_filename: The filename of the template to fill
     :type template_filename: string
     """
-    loader = PackageLoader("waterpy", "templates")
+    # loader = PackageLoader("waterpy", "templates")
+    loader = FileSystemLoader(r"D:\waterpy\waterpy\templates")
     env = Environment(loader=loader)
     template = env.get_template("report_template.html")
 
