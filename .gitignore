@@ -107,3 +107,9 @@ waterpy/database
 /waterpy.egg-info
 *.png
 *.csv
+data_hawley.tiff
+filtered_raster.tif
+*.cpg
+*.dbf
+*.lock
+*.tiff

@@ -28,7 +28,7 @@ class Shp:
         self.feature = self.shp.GetLayer(0).GetFeature(0)
         self.extent = self.feature.GetGeometryRef().GetEnvelope()
         self.x_cen, self.y_cen = self._centroid()
-        self.daymet_x, self.daymet_y = self.daymet_proj()
+        # self.daymet_x, self.daymet_y = self.daymet_proj()
         self.karst_flag = 0
 
     @classmethod
@@ -53,10 +53,10 @@ class Shp:
         center_y = centroid['coordinates'][1]
         return center_x, center_y
 
-    def daymet_proj(self):
-        daymet_proj = pycrs.load.from_file("database//climate//Daymet.prj")
-        transformer = pyproj.Transformer.from_crs(self.prj4, daymet_proj.to_proj4())
-        return transformer.transform(self.x_cen, self.y_cen)
+    # def daymet_proj(self):
+    #     daymet_proj = pycrs.load.from_file("database//climate//Daymet.prj")
+    #     transformer = pyproj.Transformer.from_crs(self.prj4, daymet_proj.to_proj4())
+    #     return transformer.transform(self.x_cen, self.y_cen)
 
     # # Need to create a default projection schema.
     # def proj_to_schema(self):
@@ -338,6 +338,105 @@ def zonal_area(raster, shp):
     )
 
     return float(masked.count() * 100)
+#%%
+import gdal
+import fiona
+from rasterio.features import geometry_mask
+import rasterio
+from pyproj import Proj, transform
+
+def clip_raster_with_shapefile(raster_file, shapefile, output_file):
+    with rasterio.open(raster_file) as src:
+        raster_crs = src.crs
+        raster_transform = src.transform
+    # Open the shapefile and get its original CRS
+    with fiona.open(shapefile, "r") as shape:
+        shape_crs = shape.crs
+    # Reproject the shapefile to match the raster's CRS
+    with fiona.open(shapefile, "r") as shape:
+        with fiona.open(output_shapefile, 'w', driver=shape.driver, crs=raster_crs, schema=shape.schema) as dst:
+            for feature in shape:
+                # Transform the coordinates of the feature
+                feature['geometry'] = transform_geometry(shape_crs, raster_crs, feature['geometry'])
+                dst.write(feature)
+    # Clip the raster using the reprojected shapefile
+    with fiona.open(output_shapefile, "r") as shape:
+        feature = shape.next()
+        geom = feature["geometry"]
+    with rasterio.open(raster_file) as src:
+        out_image, out_transform = geometry_mask(geom, raster_transform, invert=True)
+    # Write the clipped raster to the output file
+    with rasterio.open(output_file, "w", driver="GTiff",
+                       height=out_image.shape[1], width=out_image.shape[2],
+                       count=1, dtype=out_image.dtype,
+                       crs=src.crs, transform=out_transform) as dest:
+        dest.write(out_image)
+    return sum(out_image.ravel())
+
+def transform_geometry(src_crs, dst_crs, geometry):
+    """
+    Transform a geometry from one CRS to another.
+    """
+    project = partial(
+        pyproj.transform,
+        pyproj.Proj(src_crs),
+        pyproj.Proj(dst_crs))
+    return transform(project, geometry)
+
+#%%
+import numpy as np
+from osgeo import gdal, osr
+
+def zonal_area_fix(raster, shp):
+    """
+    Clip a raster using a shapefile and return the sum of the clipped raster values. 
+    The function first ensures that the raster and shapefile are in the same projection.
+    :param raster: path to the raster file.
+    :param shp: path to the shapefile.
+    :return: sum of the clipped raster values.
+    """
+    # Open the raster and shapefile
+    raster_ds = gdal.Open(raster)
+    shp_ds = ogr.Open(shp)
+    shp_lyr = shp_ds.GetLayer()
+    
+    # Make sure that the raster and shapefile are in the same projection
+    raster_srs = osr.SpatialReference(wkt=raster_ds.GetProjection())
+    shp_srs = shp_lyr.GetSpatialRef()
+    if not raster_srs.IsSame(shp_srs):
+        print("Reprojecting shapefile to match raster...")
+        shp_lyr = shp_lyr.Clone()
+        shp_lyr.ResetReading()
+        shp_lyr.SetSpatialFilter(None)
+        shp_lyr.SetAttributeFilter(None)
+        shp_lyr.SetSpatialFilter(shp_lyr.GetExtent())
+        out_srs = raster_srs
+        coord_trans = osr.CoordinateTransformation(shp_srs, out_srs)
+        shp_lyr.Transform(coord_trans)
+    
+    # Create a new raster to hold the clipped result
+    driver = gdal.GetDriverByName("MEM")
+    out_ds = driver.Create("", raster_ds.RasterXSize, raster_ds.RasterYSize, 1, gdal.GDT_Float32)
+    out_ds.SetProjection(raster_ds.GetProjection())
+    out_ds.SetGeoTransform(raster_ds.GetGeoTransform())
+    gdal.Warp(out_ds, raster_ds, cutlineDSName=shp, cropToCutline=True)
+    
+    # Read the clipped raster into a numpy array
+    raster_array = out_ds.ReadAsArray()
+    
+    # Sum the clipped raster values
+    raster_sum = np.sum(raster_array)
+    
+    # Close the raster and shapefile
+    out_ds = None
+    raster_ds = None
+    shp_ds = None
+    
+    return raster_sum
+
+    
+
+#%%
 
 def twi_bins(raster, shp, nbins=30):
 
@@ -611,7 +710,7 @@ def characteristics(db_rasters, shp):
 
         "latitude": {deg_lat(shp)},
         "basin_area_total": {get_area(shp) / 10e6},
-        "impervious_area_fraction": {(zonal_area(db_rasters["imp"], shp) / get_area(shp)) * 100},
+        "impervious_area_fraction": {(zonal_area(db_rasters["imp"], shp)/ get_area(shp)) * 100},
         "channel_length_max": {2},
         "channel_velocity_avg": {10},
         "flow_initial": {0.1},
