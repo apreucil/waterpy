@@ -8,6 +8,7 @@ Created on Wed Jan 25 08:06:19 2023
 # Set up shapefiles
 
 import numpy as np
+import pandas as pd
 import geopandas as gpd
 import os
 import sys
@@ -19,29 +20,31 @@ from rasterio.features import geometry_mask
 from rasterio.plot import show
 from rasterio.features import shapes
 from shapely.geometry import shape
+import skimage.transform as st
 
 #%% Path to climate basins
-path_to_wbdCatch= r"D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\phys\wbdCatch.shp"
+path_to_wbdCatch = r"D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\phys\wbdCatch.shp"
 #%% Read in the clim basins shapefile and convert it 
 basins = gpd.read_file(path_to_wbdCatch)
 basins = basins.to_crs(epsg=5070)
-#%% This demostrates the clipping process for a land use
-mask_path = r"D:\WATER_FILES\BaseV4_2011aLULC\170\rmask\w001001.adf"
-data_path = r'D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\phys\haawc100\w001001.adf'
-
-# Read rasters using rioxarray
-raster = riox.open_rasterio(mask_path,masked=True)
-raster_data = riox.open_rasterio(data_path,masked=True)
-
-# Use polygon in clip method of rioxarray object to clip rasters to climate basin
-clipped_mask = raster.rio.clip(basins.loc[[845],'geometry'].geometry)
-clipped_data = raster_data.rio.clip(basins.loc[[845],'geometry'].geometry)
-
-mean_lu = np.nanmean(clipped_data.data[clipped_mask.data == 1])
-
-
-#%%
+#%% DRB Specific Functions for area and twi
 def calc_area(masked_arr,transform):
+    """
+    
+
+    Parameters
+    ----------
+    masked_arr : TYPE
+        DESCRIPTION.
+    transform : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    tot_area : TYPE
+        DESCRIPTION.
+
+    """
     raster_shape = shapes(masked_arr,transform = transform)
     tot_area = 0
     for myshape,value in raster_shape:
@@ -49,15 +52,86 @@ def calc_area(masked_arr,transform):
         area = polygon.area
         tot_area += area
     return tot_area
-#%%
-def drb_characteristics(db_rasters, shp, basin):
+
+def calc_twi(masked,nbins=30):
+    """
+    Function copied from geospatial.py
+    and modified to work with the masked
+    land use twi dataset.
+
+    Parameters
+    ----------
+    masked : TYPE
+        DESCRIPTION.
+        
+    nbins
+
+    Returns
+    -------
+    df : TYPE
+        DESCRIPTION.
+
+    """
+    mx = np.nanmax(masked.filled(np.nan))
+    mn = np.nanmin(masked.filled(np.nan))
+    intvl = (mx - mn) / (nbins + 1)
+    edges = np.arange(mn, mx, intvl)
+    histo = np.histogram(masked.filled(np.nan), bins=edges)
+
+
+    # need mean of each bin.  Get the rest of the stats while there.
+    # TWI Mean is the value we need for TopModel Input.
+
+    bins = []
+
+    for i in range(nbins):
+        line = []
+        bin = i + 1
+        if i == 0:
+            twi_val = histo[1][i] / 2
+        else:
+            twi_val = (histo[1][i] + histo[1][i-1]) / 2
+        proportion = histo[0][i]/np.sum(histo[0])
+
+        line.append(bin)
+        line.append(twi_val)
+        line.append(proportion)
+        bins.append(line)
+
+    df = pd.DataFrame(bins, columns=['bin', 'twi', 'proportion'])
+    df.set_index('bin', inplace=True)
+
+    return df
+#%% Calculate characteristics
+def drb_characteristics(db_rasters,basin):
+    chars = {}
+    twis = {}
+    
+    basin_geometry = basins.loc[[basin],'geometry'].geometry.iloc[0]
+
+    
+    
     for landuse in ['f','r','a']:
         mask_path = os.path.join(r"D:\WATER_FILES\BaseV4_2011aLULC\170",landuse+"mask\w001001.adf")
+        
+        with rasterio.open(mask_path) as landuse_src:
+            col_off, row_off, lwidth, lheight = landuse_src.window(*basin_geometry.bounds).flatten()
+            col_start = int(np.round(col_off))
+            row_start = int(np.round(row_off))
+            col_stop = col_start + int(np.round(lwidth))
+            row_stop = row_start + int(np.round(lheight))
+            
+            window = ((row_start, row_stop), (col_start, col_stop))
+            landuse_mask = landuse_src.read(1, masked=True, window=window)
+            show(landuse_mask,title='The mask')
+            
+            mask = geometry_mask([basin_geometry], landuse_mask.shape, transform=landuse_src.window_transform(window), invert=True)
+            lu_basin = np.ma.masked_array(landuse_mask,mask=~mask)
+            lu_area = calc_area(lu_basin,landuse_src.transform)
 
         db_rasters_clip = {}
         for k, v in db_rasters.items():
             with rasterio.open(v) as src:
-                basin_geometry = basins.loc[[basin],'geometry'].geometry.iloc[0]
                 col_off, row_off, width, height = src.window(*basin_geometry.bounds).flatten()
                 col_start = int(np.round(col_off))
                 row_start = int(np.round(row_off))
@@ -71,28 +145,16 @@ def drb_characteristics(db_rasters, shp, basin):
                 data = np.ma.masked_array(data, mask=~mask)
                 show(data,title='Before Mask '+k)
                 
-                with rasterio.open(mask_path) as landuse_src:
-                    col_off, row_off, lwidth, lheight = landuse_src.window(*basin_geometry.bounds).flatten()
-                    col_start = int(np.round(col_off))
-                    row_start = int(np.round(row_off))
-                    col_stop = col_start + int(np.round(lwidth))
-                    row_stop = row_start + int(np.round(lheight))
+                if data.shape == landuse_mask.shape:
+                    lu_data = np.ma.masked_where(landuse_mask!=1,data)
+                    show(lu_data,title='After Mask '+k)
+                else:
+                    correct_res_data = st.resize(data,(590,590),mode='constant') 
+                    show(correct_res_data,title='Resolution Corrected for '+k)
+                    lu_data = np.ma.masked_where(landuse_mask!=1,correct_res_data)
+                    show(lu_data,title='After Mask '+k)
                     
-                    window = ((row_start, row_stop), (col_start, col_stop))
-                    landuse_mask = landuse_src.read(1, masked=True, window=window)
-                    show(landuse_mask,title='The mask')
 
-                    if data.shape == landuse_mask.shape:
-                        lu_data = np.ma.masked_where(landuse_mask!=1,data)
-                        show(lu_data,title='After Mask '+k)
-                    else:
-                        correct_res_data = st.resize(data,(590,590),mode='constant') 
-                        show(correct_res_data,title='Resolution Corrected for '+k)
-                        lu_data = np.ma.masked_where(landuse_mask!=1,correct_res_data)
-                        show(lu_data,title='After Mask '+k)
-                    
-                    lu_basin = np.ma.masked_array(landuse_mask,mask=~mask)
-                    lu_area = calc_area(lu_basin,landuse_src.transform)
                     
                 db_rasters_clip[k] = lu_data
 
@@ -149,31 +211,17 @@ def drb_characteristics(db_rasters, shp, basin):
         df.columns = ['value']
         df['units'] = units
         df['description'] = description
+        
+        chars[landuse] = df
+        
+        twis[landuse] = calc_twi(db_rasters_clip["twi"])
 
-    return df
-
-
-
-
-#%% Code from geospatial.py
+    return chars,twis
+#%% Main Program
 path_to_db = r'D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\phys'
-# karst_raster = Raster(path="database//sinks.tif")
-# karst_shp = ''
-shp = Shp(path=r"D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\shape_files\basin_near_hawley.shp")
 
+# shp = Shp(path=r"D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\shape_files\basin_near_hawley.shp")
 
-# db_rasters = {'awc': riox.open_rasterio(os.path.join(path_to_db,'haawc100\w001001.adf'),masked=True),
-#               'con_mult': riox.open_rasterio(os.path.join(path_to_db,'haconmult100\w001001.adf'),masked=True),
-#               'field_cap': riox.open_rasterio(os.path.join(path_to_db,'hafc100\w001001.adf'),masked=True),
-#               'k_sat': riox.open_rasterio(os.path.join(path_to_db,'haksat100\w001001.adf'),masked=True),
-#               'scaling_parameter': riox.open_rasterio(os.path.join(path_to_db,'hammilli100\w001001.adf'),masked=True), # ??? hammilli100?
-#               'soil_thickness': riox.open_rasterio(os.path.join(path_to_db,'hadepth100\w001001.adf'),masked=True),
-#               'porosity': riox.open_rasterio(os.path.join(path_to_db,'hapor100\w001001.adf'),masked=True),
-#               'imp': riox.open_rasterio(os.path.join(path_to_db,'imp\w001001.adf'),masked=True),
-#               'snet_10m': riox.open_rasterio(r"D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\topo\snet\w001001.adf",masked=True),
-#               'twi': riox.open_rasterio(os.path.join(path_to_db,"twi\w001001.adf"),masked=True),
-#               'stream': riox.open_rasterio(r"D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\topo\snet\w001001.adf",masked=True)
-#               }
 db_rasters = {'awc': os.path.join(path_to_db,'haawc100\w001001.adf'),
               'con_mult': os.path.join(path_to_db,'haconmult100\w001001.adf'),
               'field_cap': os.path.join(path_to_db,'hafc100\w001001.adf'),
@@ -186,7 +234,5 @@ db_rasters = {'awc': os.path.join(path_to_db,'haawc100\w001001.adf'),
               'twi': os.path.join(path_to_db,"twi\w001001.adf"),
               'stream': r"D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\topo\snet\w001001.adf"
               }
-# shp.karst_flag = karst_detection(karst_raster, shp)
 
-# out_df = characteristics(db_rasters, shp)
-# out_twi = twi_bins(db_rasters["twi"], shp)
+chars, twis = drb_characteristics(db_rasters, 845)

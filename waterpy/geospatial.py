@@ -715,7 +715,7 @@ def characteristics(db_rasters, shp):
         "channel_velocity_avg": {10},
         "flow_initial": {0.1},
         "stream area": {zonal_area(db_rasters["snet_10m"], shp) / 10e5},
-        "lake_area": {0}, #still working
+        "lake_area": {0}, #still working # AP: Try with 0, then try with reservoir area
         "up_lake_area" : {0}, #still working
         "rip_area": {(zonal_area(db_rasters["snet_10m"], shp) / 10e5)},  # stream_area + lake_area,
         "lake_delay": {0},
