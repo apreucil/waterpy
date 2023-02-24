@@ -7,6 +7,7 @@ Created on Wed Jan 18 08:26:50 2023
 
 import multiprocessing as mp
 from GenerateInput import input_main
+from drb_geoprocessing import geo_main, files
 from worker_file import main
 import os
 #%% For input generation
@@ -21,7 +22,22 @@ def gen_input():
         
         pool.close()
         pool.join()
-    
+#%% For geoprocessing
+def drb_geoprocess(pst_node):
+    if __name__ == '__main__':
+        
+        basins,watersheds = files()
+        key = basins.overlay(watersheds[['PSTSubNode','geometry']])
+        
+        num_workers = mp.cpu_count()  
+        
+        pool = mp.Pool(num_workers)
+        climbasins = list(key[key.PSTSubNode == pst_node].HydroID.values)
+        for climbasin in climbasins:
+            pool.apply_async(geo_main, args = (climbasin,basins,watersheds))
+        
+        pool.close()
+        pool.join()
 #%% For running the model one basin at a time
 # THIS WORKS! NOTE, RUN WHOLE FILE, NOT JUST CELL OR IT WON'T WORK.
 def run_water(basin):
@@ -55,6 +71,7 @@ def run_waterDRB(subbasins):
         pool.join()
     
 #%% Run
-run_water('110')
+# run_water('110')
 # run_waterDRB(['115A','115B'])
+drb_geoprocess('165')
 # gen_input()

@@ -5,7 +5,7 @@ Created on Wed Jan 25 08:06:19 2023
 @author: AnthonyPreucil
 """
 
-# Set up shapefiles
+# Import Libraries
 
 import numpy as np
 import pandas as pd
@@ -13,21 +13,19 @@ import geopandas as gpd
 import os
 import sys
 sys.path.append('D:/waterpy/waterpy')
-from geospatial import *
-import rioxarray as riox
+# from geospatial import *
 import rasterio
 from rasterio.features import geometry_mask
-from rasterio.plot import show
+# from rasterio.plot import show
 from rasterio.features import shapes
 from shapely.geometry import shape
 import skimage.transform as st
+# import matplotlib.pyplot as plt
 
-#%% Path to climate basins
-path_to_wbdCatch = r"D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\phys\wbdCatch.shp"
-#%% Read in the clim basins shapefile and convert it 
-basins = gpd.read_file(path_to_wbdCatch)
-basins = basins.to_crs(epsg=5070)
 #%% DRB Specific Functions for area and twi
+# Borrowed calculations from geospatial
+# Modified to worked with masked arrays given a transform
+
 def calc_area(masked_arr,transform):
     """
     
@@ -103,136 +101,241 @@ def calc_twi(masked,nbins=30):
 
     return df
 #%% Calculate characteristics
-def drb_characteristics(db_rasters,basin):
+def drb_lu_params():
+    
+    # Pre-defined parameters (page 21 https://pubs.usgs.gov/sir/2015/5143/sir20155143.pdf)
+    # These are land-use dependent, but not location or seasonally dependent at this time
+    params = {}
+    params['f'] = {'spatial_coef':0.4,
+                   'rooting_depth_factor':0.75,
+                   'macropore_fraction':0.15,
+                   'impervious_curve_number':90,
+                   'snowmelt_temperature_cutoff':0,
+                   'snowmelt_rate_coeff':2,
+                   'snowmelt_rate_coeff_with_rain':3,
+                   'pet_calib_coeff':1.2,
+                   'lake_delay':15,
+                   'eff_imp':0.7,
+                   'imp_delay':0.1,
+                   'twi_adj':1,
+                   'et_exp_dorm':5,
+                   'et_exp_grow':0.5,
+                   'grow_trigger':15}
+    
+    params['a'] = {'spatial_coef':0.3,
+                   'rooting_depth_factor':0.25,
+                   'macropore_fraction':0.15,
+                   'impervious_curve_number':90,
+                   'snowmelt_temperature_cutoff':0,
+                   'snowmelt_rate_coeff':2,
+                   'snowmelt_rate_coeff_with_rain':4,
+                   'pet_calib_coeff':1.2,
+                   'lake_delay':1.5,
+                   'eff_imp':1,
+                   'imp_delay':0.5,
+                   'twi_adj':1,
+                   'et_exp_dorm':5,
+                   'et_exp_grow':0.5,
+                   'grow_trigger':15}
+    
+    params['r'] = {'spatial_coef':0.25,
+                   'rooting_depth_factor':0.75,
+                   'macropore_fraction':0.2,
+                   'impervious_curve_number':100,
+                   'snowmelt_temperature_cutoff':0,
+                   'snowmelt_rate_coeff':4,
+                   'snowmelt_rate_coeff_with_rain':6,
+                   'pet_calib_coeff':1.2,
+                   'lake_delay':1.5,
+                   'eff_imp':1,
+                   'imp_delay':0.1,
+                   'twi_adj':0.5,
+                   'et_exp_dorm':5,
+                   'et_exp_grow':0.5,
+                   'grow_trigger':15}
+    return params
+    
+def drb_characteristics(db_rasters,basin,path_to_masks,basins,watersheds):    
     chars = {}
     twis = {}
-    
-    basin_geometry = basins.loc[[basin],'geometry'].geometry.iloc[0]
-
-    
+    # basin_geometry = basins.loc[[basin],'geometry'].geometry.iloc[0]
+    gdf = gpd.GeoDataFrame(basins.loc[[basin],'geometry']).overlay(watersheds[['PSTSubNode','geometry']])
     
     for landuse in ['f','r','a']:
-        mask_path = os.path.join(r"D:\WATER_FILES\BaseV4_2011aLULC\170",landuse+"mask\w001001.adf")
-        
-        with rasterio.open(mask_path) as landuse_src:
-            col_off, row_off, lwidth, lheight = landuse_src.window(*basin_geometry.bounds).flatten()
-            col_start = int(np.round(col_off))
-            row_start = int(np.round(row_off))
-            col_stop = col_start + int(np.round(lwidth))
-            row_stop = row_start + int(np.round(lheight))
+        rasters = {}
+        if landuse=='a':
+            root_depth_factor = .25
+        else:
+            root_depth_factor = .75
+        # Since landuse params do not change, output once
+        # params_lu = params['f']
+        # gdf = gpd.GeoDataFrame(basins.loc[[basin],'geometry']).overlay(watersheds[['PSTSubNode','geometry']])
+        for pst in gdf.PSTSubNode.values:
+            basin_geometry = gdf[gdf.PSTSubNode==pst].geometry.iloc[0]
+            # fig,ax = plt.subplots()
+            # gdf[gdf.PSTSubNode==pst].plot(ax=ax)
+            # plt.show()
+            mask_path = os.path.join(path_to_masks,str(pst),landuse+"mask\w001001.adf")
             
-            window = ((row_start, row_stop), (col_start, col_stop))
-            landuse_mask = landuse_src.read(1, masked=True, window=window)
-            show(landuse_mask,title='The mask')
-            
-            mask = geometry_mask([basin_geometry], landuse_mask.shape, transform=landuse_src.window_transform(window), invert=True)
-            lu_basin = np.ma.masked_array(landuse_mask,mask=~mask)
-            lu_area = calc_area(lu_basin,landuse_src.transform)
-
-        db_rasters_clip = {}
-        for k, v in db_rasters.items():
-            with rasterio.open(v) as src:
-                col_off, row_off, width, height = src.window(*basin_geometry.bounds).flatten()
+            with rasterio.open(mask_path) as landuse_src:
+                col_off, row_off, lwidth, lheight = landuse_src.window(*basin_geometry.bounds).flatten()
                 col_start = int(np.round(col_off))
                 row_start = int(np.round(row_off))
-                col_stop = col_start + int(np.round(width))
-                row_stop = row_start + int(np.round(height))                
+                col_stop = col_start + int(np.round(lwidth))
+                row_stop = row_start + int(np.round(lheight))
                 
-                window = ((row_start, row_stop), (col_start, col_stop))
-                data = src.read(1, masked=True, window=window)
-                show(data)
-                mask = geometry_mask([basin_geometry], data.shape, transform=src.window_transform(window), invert=True)
-                data = np.ma.masked_array(data, mask=~mask)
-                show(data,title='Before Mask '+k)
+                basewindow = ((row_start, row_stop), (col_start, col_stop))
+                window = tuple(tuple(max(0, num) for num in inner_tuple) for inner_tuple in basewindow)
+                landuse_mask = landuse_src.read(1, masked=True, window=window)
+                # show(landuse_mask,title='The mask')
                 
-                if data.shape == landuse_mask.shape:
-                    lu_data = np.ma.masked_where(landuse_mask!=1,data)
-                    show(lu_data,title='After Mask '+k)
-                else:
-                    correct_res_data = st.resize(data,(590,590),mode='constant') 
-                    show(correct_res_data,title='Resolution Corrected for '+k)
-                    lu_data = np.ma.masked_where(landuse_mask!=1,correct_res_data)
-                    show(lu_data,title='After Mask '+k)
-                    
+                mask = geometry_mask([basin_geometry], landuse_mask.shape, transform=landuse_src.window_transform(window), invert=True)
+                lu_basin = np.ma.masked_array(landuse_mask,mask=~mask)
+                
+            # show(lu_basin,title='Basin Masked')
+            
+            lu_area = calc_area(lu_basin,landuse_src.transform)
 
+            db_rasters_clip = {}
+            db_rasters_clip['area'] = np.ma.array([lu_area],mask=[False])
+            for k, v in db_rasters.items():
+                # print (k)
+                with rasterio.open(v) as src:
+                    col_off, row_off, width, height = src.window(*basin_geometry.bounds).flatten()
+                    col_start = int(np.round(col_off))
+                    row_start = int(np.round(row_off))
+                    col_stop = col_start + int(np.round(width))
+                    row_stop = row_start + int(np.round(height))                
                     
+                    window = ((row_start, row_stop), (col_start, col_stop))
+                    data = src.read(1, masked=True, window=window)
+                    # show(data)
+                    mask = geometry_mask([basin_geometry], data.shape, transform=src.window_transform(window), invert=True)
+                    data = np.ma.masked_array(data, mask=~mask)
+                    # show(data,title='Before Mask '+k)
+                    
+                    if data.shape == landuse_mask.shape:
+                        lu_data = np.ma.masked_where(landuse_mask!=1,data)
+                        # show(lu_data,title='After Mask '+k)
+                    else:
+                        # imp_transform=d_transform
+                        # print (data.shape)
+                        # rs_landuse_mask = st.resize(landuse_mask.mask,data.shape)
+                        data = np.ma.masked_array(data, mask=~mask)
+                        # correct_res_data = st.resize_local_mean(data,lu_basin.shape,grid_mode=False,preserve_range=True)
+                        correct_res_data = st.resize(data,lu_basin.shape,mode='constant',cval=0,preserve_range=True)
+                        # scale_factor = np.sum(data)/np.sum(correct_res_data)
+                        # correct_res_data = resample_imp(v,mask_path)
+                        # print (k+ ' was corrected for resolution, corrected to: ')
+                        # print (correct_res_data.shape)
+                        # show(correct_res_data,title='Resolution Corrected for '+k)
+                        # blu_data = np.ma.masked_array(correct_res_data, mask=~mask)
+                        lu_data = np.ma.masked_where(lu_basin!=1,correct_res_data)
+                        # print(lu_data.sum()/230400*100)
+                        # lu_data = mlu_data*scale_factor
+                        # show(mlu_data,title='After Mask '+k)
+                        # zlu_data = mlu_data.filled(-99999)
+                        # lu_data = st.resize(zlu_data,data.shape,mode='constant')
+                        # show(lu_data,title='After mask, reduced to original size, filled with 0s '+k)
+                        # rs_lu_mask = np.ma.masked_where(rs_landuse_mask==False,rs_landuse_mask)
+                        # lu_data = np.ma.masked_where((landuse_mask!=True)|(mlu_data==0),mlu_data)
+                        # show(lu_data,title='After Mask '+k)
+                
                 db_rasters_clip[k] = lu_data
+            
+            rasters[pst] = db_rasters_clip
+                
+    
+        joined_rasters = {key: np.ma.concatenate([d[key].compressed() for d in rasters.values()]) 
+                          for key in rasters[list(rasters.keys())[0]].keys()}
 
         characteristics_out = {
-            "scaling_parameter": {db_rasters_clip['scaling_parameter'].mean() / 100},
-            "saturated_hydraulic_conductivity": {db_rasters_clip['k_sat'].mean() / 100 * 86.4},
-            "saturated_hydraulic_conductivity_multiplier": {db_rasters_clip['con_mult'].mean() / 100},
-            "soil_depth_total": {db_rasters_clip["soil_thickness"].mean() / 10},
-            "field_capacity_fraction": {db_rasters_clip["field_cap"].mean() / 10000},
-            "porosity_fraction": {db_rasters_clip["porosity"].mean() / 10000},
-            "wilting_point_fraction": {(db_rasters_clip["field_cap"].mean() / 10000) -
-                                       (db_rasters_clip['awc'].mean() / 100)},
+            "scaling_parameter": {joined_rasters['scaling_parameter'].mean() / 100},
+            "saturated_hydraulic_conductivity": {joined_rasters['k_sat'].mean() / 100 * 86.4},
+            "saturated_hydraulic_conductivity_multiplier": {joined_rasters['con_mult'].mean() / 100},
+            "soil_depth_total": {joined_rasters["soil_thickness"].mean() / 10},
+            "soil_depth_roots": {(joined_rasters["soil_thickness"].mean() / 10)*root_depth_factor},
+            "field_capacity_fraction": {joined_rasters["field_cap"].mean() / 100},
+            "porosity_fraction": {joined_rasters["porosity"].mean() / 100},
+            "wilting_point_fraction": {(joined_rasters["field_cap"].mean()/100)  -
+                                       (joined_rasters['awc'].mean()/100)},
+            "water_holding_capacity": {(joined_rasters["field_cap"].mean() / 100) -
+                                       ((joined_rasters["field_cap"].mean()/100)  -
+                                        (joined_rasters['awc'].mean()/100))
+                                       },
             "latitude": {basins.loc[[basin],'geometry'].to_crs('EPSG:4326').geometry.centroid.y.values[0]},
-            "basin_area_total": {lu_area / 10e6},
-            "impervious_area_fraction": {(db_rasters_clip['imp'].filled(np.nan)>0).sum()*100/lu_area*100},
+            "basin_area_total": {joined_rasters['area'].sum() / 10e5},
+            "impervious_area_fraction": {joined_rasters['imp'].sum()/joined_rasters['area'].sum()*100},
             "channel_length_max": {2},
             "channel_velocity_avg": {10},
             "flow_initial": {0.1},
-            "stream area": {(db_rasters_clip['snet_10m'].filled(0)>0).sum()*100 / 10e5},
+            "stream area": {(joined_rasters['snet_10m'].filled(0)>0).sum()*100 / 10e5},
             "lake_area": {0}, #still working
             "up_lake_area" : {0}, #still working
-            "rip_area": {(db_rasters_clip['snet_10m'].filled(0)>0).sum()*100 / 10e5},  # stream_area + lake_area,
-            "lake_delay": {0},
-            "eff_imp": {0.7},
-            "imp_delay": {0.1},
-            "twi_adj": {1},
-            "et_exp_dorm": {0.5},
-            "et_exp_grow": {0.5},
-            "grow_trigger": {15},
+            "rip_area": {(joined_rasters['snet_10m'].filled(0)>0).sum()*100 / 10e5},  # stream_area + lake_area,
         }
-        units = ["mm", "mm/day","unitless","mm","fraction","fraction","fraction","degrees", "sq km", "percentage",
-                 "km", "km/day", "mm/day", "sq km", "sq km", "sq km", "sq km", "days", "fraction", "days", "unitless",
-                 "unitless", "unitless", "temp C"]
-    
-        description = ['controls the rate of decline of transmissivity in the soil profile',
-                       'saturated hydraulic conductivity of the C horizon of the soil',
-                       'multiplier to apply to saturated hydraulic conductivity ', 'soil depth',
-                       'fraction of soil moisture or water content in the soil after excess water has drained away',
-                       'fraction of soil that is porous and is always larger than field_capacity_fraction',
-                       'fraction amount of the minimal amount of water in the soil that plants require not to wilt',
-                       'centroid latitude of basin', 'total basin area', 'fraction of impervious area of basin',
-                       'maximum channel length', 'average channel velocity', 'initial river flow',
-                       'total stream surface area', 'total waterbody area', 'total waterbody area upstream',
-                       'total riparian area', 'estimated time for water to move through lake',
-                       'percentage of impervious area connection to stream network',
-                       'estimated delay for impervious runoff to reach stream network',
-                       'Adjustment for magnitude of TWI - must be >= 1.',
-                       'evapotranspiration Exponent for non-growing season.',
-                       'evapotranspiration Exponent for growing season.',
-                       'Temperature (C) transition to/from growing season for ET Exp and AMC.']
     
         df = pd.DataFrame.from_dict(characteristics_out, orient="index")
         df.index.name = "name"
         df.columns = ['value']
-        df['units'] = units
-        df['description'] = description
-        
+    
+        twis[landuse] = calc_twi(joined_rasters["twi"])
         chars[landuse] = df
-        
-        twis[landuse] = calc_twi(db_rasters_clip["twi"])
 
     return chars,twis
+
+#%% Read Files
+def files():
+    path_to_wbdCatch = r"D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\phys\wbdCatch.shp"
+    path_to_watersheds = r"D:\WATER_FILES\BaseV4_2011aLULC\Watersheds.shp"
+    
+    # Read in the clim basins shapefile and convert it 
+    basins = gpd.read_file(path_to_wbdCatch)
+    basins = basins.to_crs(epsg=5070)
+    basins.index = basins.HydroID
+
+    # Larger Watersheds
+    watersheds = gpd.read_file(path_to_watersheds)
+    watersheds = watersheds.to_crs(epsg=5070)
+    
+    return basins,watersheds
+
 #%% Main Program
-path_to_db = r'D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\phys'
 
-# shp = Shp(path=r"D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\shape_files\basin_near_hawley.shp")
+def geo_main(climbasin, basins, watersheds):
+    
+    # Path to basin files
+    path_to_db = r'D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\phys'
+    path_to_masks = r"D:\WATER_FILES\BaseV4_2011aLULC"
+    path_to_save = r"D:\WATER_FILES\inputs\Climbasin_inputs\basin_characteristics"
 
-db_rasters = {'awc': os.path.join(path_to_db,'haawc100\w001001.adf'),
-              'con_mult': os.path.join(path_to_db,'haconmult100\w001001.adf'),
-              'field_cap': os.path.join(path_to_db,'hafc100\w001001.adf'),
-              'k_sat': os.path.join(path_to_db,'haksat100\w001001.adf'),
-              'scaling_parameter': os.path.join(path_to_db,'hammilli100\w001001.adf'), # ??? hammilli100?
-              'soil_thickness': os.path.join(path_to_db,'hadepth100\w001001.adf'),
-              'porosity': os.path.join(path_to_db,'hapor100\w001001.adf'),
-              'imp': os.path.join(path_to_db,'imp_2011\w001001.adf'),
-              'snet_10m': r"D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\topo\snet\w001001.adf",
-              'twi': os.path.join(path_to_db,"twi\w001001.adf"),
-              'stream': r"D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\topo\snet\w001001.adf"
-              }
-
-chars, twis = drb_characteristics(db_rasters, 845)
+    
+    db_rasters = {'awc': os.path.join(path_to_db,'haawc100\w001001.adf'),
+                  'con_mult': os.path.join(path_to_db,'haconmult100\w001001.adf'),
+                  'field_cap': os.path.join(path_to_db,'hafc100\w001001.adf'),
+                  'k_sat': os.path.join(path_to_db,'haksat100\w001001.adf'),
+                  'scaling_parameter': os.path.join(path_to_db,'hammilli100\w001001.adf'),
+                  'soil_thickness': os.path.join(path_to_db,'hadepth100\w001001.adf'),
+                  'porosity': os.path.join(path_to_db,'hapor100\w001001.adf'),
+                  'imp': os.path.join(path_to_db,'imp_2011\w001001.adf'),
+                  'snet_10m': r"D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\topo\snet\w001001.adf",
+                  'twi': os.path.join(path_to_db,"twi\w001001.adf"),
+                  'stream': r"D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\topo\snet\w001001.adf"
+                  }
+    
+    chars, twis = drb_characteristics(db_rasters, climbasin, path_to_masks, basins, watersheds)
+    params = drb_lu_params()
+    
+    lu_to_landuse = {'f':'forest','r':'developed','a':'agricultural'}
+    
+    
+    if os.path.exists(os.path.join(path_to_save,str(climbasin))):
+        pass
+    else:
+        os.mkdir(os.path.join(path_to_save,str(climbasin)))
+                 
+    for lu in chars.keys():
+        chars[lu].to_csv(os.path.join(path_to_save,str(climbasin),'basin_characteristics_'+lu_to_landuse[lu]+'.csv'))
+#%% Uncomment to test one basin
+# basins,watersheds = files()
+# geo_main(605,basins,watersheds)

@@ -240,9 +240,9 @@ def input_main(basin):
         lu_ini.close()
 
 #%%
-def one_var(var):
+def one_var(var,lu):
     basins = [folder for folder in os.listdir("D:\WATER_FILES\BaseV4_2011aLULC") if len(folder)<=4]
     for basin in basins:
         xmlfile = os.path.join('D:\WATER_FILES\BaseV4_2011aLULC',basin,'WATERSimulation.xml')
         df = pd.read_xml(xmlfile,xpath = 'Project/Study/StudySimulation/SimulationFeatures')
-        print (basin, df[(df.AttName == var) & (df.SimulID==1)].AttMeanVal.values)
+        print (basin, df[(df.AttName == var) & (df.SimulID==lu)].AttMeanVal.values)
