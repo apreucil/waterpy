@@ -109,5 +109,5 @@ def run_climbasins(pst_basin):
 # run_waterDRB(['115A','115B'])
 # drb_geoprocess('170')
 # gen_input()
-run_one_climbasin('681')
+run_one_climbasin('604')
 # run_climbasins('145')

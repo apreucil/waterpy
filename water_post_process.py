@@ -9,22 +9,47 @@ Created on Wed Jan 18 15:33:08 2023
 import pandas as pd
 import os
 import re
+from drb_geoprocessing import files
 
-path_to_output = r"D:\WATER_FILES\outputs\BaseV4_2011aULC_outputs"
-basin = '110'
+path_to_output = r"D:\WATER_FILES\outputs\climbasin_outputs\basin_characteristics"
+basin = '145'
 
-basin_df = pd.DataFrame()
-for lu in ['forest','agricultural','developed']:
-    print (lu)
-    lu_df = pd.read_csv(os.path.join(path_to_output,basin,lu,'output.csv'),index_col='date')
-    basin_df = pd.concat([basin_df,lu_df['discharge_predicted average (cfs)']],axis=1)
+filename = os.path.join(r"D:\WATER_FILES\BaseV4_2011aLULC",str(basin),"WATER.txt")
+climbasins = False
+
+if climbasins:
+    basins,watersheds = files()
+    key = basins.overlay(watersheds[['PSTSubNode','geometry']])
     
-DRB_df = pd.DataFrame()
-DRB_df['110'] = basin_df.sum(axis=1)
+    climbasins = list(key[key.PSTSubNode == basin].HydroID.values)
+    
+    basin_df = pd.DataFrame()
+    for b in climbasins:
+        for lu in ['forest','agricultural','developed']:
+            print (b)
+            try:
+                lu_df = pd.read_csv(os.path.join(path_to_output,str(b),lu,'output.csv'),index_col='date')
+                basin_df = pd.concat([basin_df,lu_df['discharge_predicted average (cfs)']],axis=1)
+            except:
+                pass
+            
+        
+    DRB_df = pd.DataFrame()
+    DRB_df[basin] = basin_df.sum(axis=1)
 
-
+else:
+    for lu in ['forest','agricultural','developed']:
+        print (b)
+        try:
+            lu_df = pd.read_csv(os.path.join(path_to_output,str(b),lu,'output.csv'),index_col='date')
+            basin_df = pd.concat([basin_df,lu_df['discharge_predicted average (cfs)']],axis=1)
+        except:
+            pass
+        
+    DRB_df = pd.DataFrame()
+    DRB_df[basin] = basin_df.sum(axis=1)
+        
 # OLD WATER
-filename = r"D:\WATER_FILES\BaseV4_2011aLULC\110\WATER.txt"
 file = open(filename)
 lines = file.readlines()
 file.close()
