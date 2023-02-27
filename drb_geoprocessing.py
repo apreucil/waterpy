@@ -302,14 +302,16 @@ def files():
 
 #%% Main Program
 
-def geo_main(climbasin, basins, watersheds):
+def geo_main(climbasin, basins, watersheds,pst_node):
     
     # Path to basin files
     path_to_db = r'D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\phys'
     path_to_masks = r"D:\WATER_FILES\BaseV4_2011aLULC"
     path_to_save = r"D:\WATER_FILES\inputs\Climbasin_inputs\basin_characteristics"
+    landuse_path = r"D:\WATER_FILES\inputs\Climbasin_inputs\landuse_params"
+    timeseries_path = r"D:\WATER_FILES\inputs\Climbasin_inputs\time_series"
 
-    
+    # Create dictionary of raster paths for use in the calculation of characteristics
     db_rasters = {'awc': os.path.join(path_to_db,'haawc100\w001001.adf'),
                   'con_mult': os.path.join(path_to_db,'haconmult100\w001001.adf'),
                   'field_cap': os.path.join(path_to_db,'hafc100\w001001.adf'),
@@ -323,19 +325,58 @@ def geo_main(climbasin, basins, watersheds):
                   'stream': r"D:\WATER_FILES\final_2015oct26\USGS\water\water_db\drb\topo\snet\w001001.adf"
                   }
     
+    # Solve for the characteristics
     chars, twis = drb_characteristics(db_rasters, climbasin, path_to_masks, basins, watersheds)
-    params = drb_lu_params()
+    # params = drb_lu_params()
     
+    # Dictionary of landuse
     lu_to_landuse = {'f':'forest','r':'developed','a':'agricultural'}
     
-    
+    # Create path to save the input files
     if os.path.exists(os.path.join(path_to_save,str(climbasin))):
         pass
     else:
         os.mkdir(os.path.join(path_to_save,str(climbasin)))
-                 
+              
+    # Loop through the landuse params and save files
     for lu in chars.keys():
+        # Save the characteristics and the twi
         chars[lu].to_csv(os.path.join(path_to_save,str(climbasin),'basin_characteristics_'+lu_to_landuse[lu]+'.csv'))
+        twis[lu].to_csv(os.path.join(path_to_save,str(climbasin),'twi_'+lu_to_landuse[lu]+'.csv'))
+        
+        # Copy the template for the modelconfig file
+        template_ini = open(os.path.join(r'D:\WATER_FILES\inputs','modelconfig_climbasins_template.ini'))
+        content = template_ini.read()
+        template_ini.close()
+        
+        # Create the output path, insert it into the model config file
+        output_path = os.path.join(path_to_save,str(climbasin))
+        content = content.replace('path_to_input_directory',output_path)
+        
+        # Link to the location of landuse params
+        content = content.replace('path_to_landuse_directory',landuse_path)
+        
+        # Create the output directories for the climbasin
+        output_dir = output_path.replace('inputs','outputs')
+        if not os.path.exists(os.path.join(output_dir,lu_to_landuse[lu])):
+            os.makedirs(os.path.join(output_dir,lu_to_landuse[lu]))
+        else:
+            pass
+        
+        content = content.replace('lu',lu_to_landuse[lu])
+        content = content.replace('path_to_output_directory',output_dir)
+        
+        # Link to the location of the climate timeseries data
+        content = content.replace('path_to_timeseries',timeseries_path)
+        content = content.replace('pstbasin',pst_node)
+        
+        # Save the new modelconfig file
+        lu_ini = open(os.path.join(output_path,'modelconfigfile_'+lu_to_landuse[lu]+'.ini'),'w')
+        lu_ini.write(content)
+        lu_ini.close()
+        
+        
+        
 #%% Uncomment to test one basin
 # basins,watersheds = files()
 # geo_main(605,basins,watersheds)

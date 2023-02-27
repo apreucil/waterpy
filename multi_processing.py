@@ -34,7 +34,7 @@ def drb_geoprocess(pst_node):
         pool = mp.Pool(num_workers)
         climbasins = list(key[key.PSTSubNode == pst_node].HydroID.values)
         for climbasin in climbasins:
-            pool.apply_async(geo_main, args = (climbasin,basins,watersheds))
+            pool.apply_async(geo_main, args = (climbasin,basins,watersheds,pst_node))
         
         pool.close()
         pool.join()
@@ -69,9 +69,45 @@ def run_waterDRB(subbasins):
         
         pool.close()
         pool.join()
+#%% For running smaller climbasins 
+ 
+def run_one_climbasin(climbasin):
+    if __name__ == '__main__':
+        num_workers = mp.cpu_count()  
+        
+        pool = mp.Pool(num_workers)
+        land_use = ['forest','agricultural','developed']
+        for lu in land_use:
+            
+            path = os.path.join(r"D:\WATER_FILES\inputs\Climbasin_inputs\basin_characteristics",climbasin)
+            pool.apply_async(main, args = (path,lu,))
+        
+        pool.close()
+        pool.join()
     
+    
+def run_climbasins(pst_basin):
+    if __name__ == '__main__':
+        basins,watersheds = files()
+        key = basins.overlay(watersheds[['PSTSubNode','geometry']])
+        
+        num_workers = mp.cpu_count()
+        pool = mp.Pool(num_workers)
+        
+        climbasins = list(key[key.PSTSubNode == pst_basin].HydroID.values)
+        land_use = ['forest','agricultural','developed']
+        for climbasin in climbasins:
+            path = os.path.join(r"D:\WATER_FILES\inputs\Climbasin_inputs\basin_characteristics",str(climbasin))
+            for lu in land_use:
+                pool.apply_async(main, args = (path,lu,))
+                
+        pool.close()
+        pool.join()
+        
 #%% Run
 # run_water('110')
 # run_waterDRB(['115A','115B'])
-drb_geoprocess('165')
+# drb_geoprocess('170')
 # gen_input()
+run_one_climbasin('681')
+# run_climbasins('145')
