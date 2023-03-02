@@ -160,7 +160,8 @@ def drb_characteristics(db_rasters,basin,path_to_masks,basins,watersheds):
     twis = {}
     # basin_geometry = basins.loc[[basin],'geometry'].geometry.iloc[0]
     gdf = gpd.GeoDataFrame(basins.loc[[basin],'geometry']).overlay(watersheds[['PSTSubNode','geometry']])
-    
+    gdf['area'] = gdf.area.astype(int) # added to filter out broken basins
+    gdf = gdf[gdf.area >= 10] # added to filter out broken basins
     for landuse in ['f','r','a']:
         rasters = {}
         if landuse=='a':
@@ -368,7 +369,7 @@ def geo_main(climbasin, basins, watersheds,pst_node):
         
         # Link to the location of the climate timeseries data
         content = content.replace('path_to_timeseries',timeseries_path)
-        content = content.replace('pstbasin',pst_node)
+        content = content.replace('pstbasin',str(pst_node))
         
         # Save the new modelconfig file
         lu_ini = open(os.path.join(output_path,'modelconfigfile_'+lu_to_landuse[lu]+'.ini'),'w')
@@ -379,4 +380,4 @@ def geo_main(climbasin, basins, watersheds,pst_node):
         
 #%% Uncomment to test one basin
 # basins,watersheds = files()
-# geo_main(605,basins,watersheds)
+# geo_main(712,basins,watersheds,145)

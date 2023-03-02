@@ -16,6 +16,7 @@ def main():
         - Plot output
         """
 import pandas as pd
+import numpy as np
 from pathlib import PurePath
 import hydrocalcs,modelconfigfile,parametersfile,timeseriesfile,twifile,plots,report
 from topmodel import Topmodel
@@ -33,6 +34,11 @@ def waterpy(configfile, options):
     """
     config_data = modelconfigfile.read(configfile)
     parameters, timeseries, twi, database = read_input_files(config_data)
+    imp_mult = 1
+    if parameters['basin']['impervious_area_fraction']['value']*imp_mult < 100:
+        parameters['basin']['impervious_area_fraction']['value'] = parameters['basin']['impervious_area_fraction']['value']*imp_mult
+    else:
+        pass
     preprocessed_data = preprocess(config_data, parameters, timeseries, twi)
     topmodel_data = run_topmodel(config_data, parameters, timeseries, twi, preprocessed_data)
     postprocess(config_data, timeseries, preprocessed_data, topmodel_data)
@@ -270,12 +276,17 @@ def postprocess(config_data, timeseries, preprocessed_data, topmodel_data):
     """
     # Get output timeseries data
     timeseries = timeseries[365:]
+    # Extract only the 1d arrays from the dictionary
+    one_d_arrays = {k:v for k,v in topmodel_data.items() if isinstance(v, np.ndarray) and v.ndim == 1}
+    # Create a pandas dataframe from the 1d arrays
+    df = pd.DataFrame.from_dict(one_d_arrays)
+    topmodel_data = df[365:]
     output_df = get_output_dataframe(timeseries,
                                      preprocessed_data,
                                      topmodel_data)
 
     # Get output comparison stats
-    output_comparison_data = get_comparison_data(output_df, minmax=config_data["Options"].getboolean("option_max_min"))
+    # output_comparison_data = get_comparison_data(output_df, minmax=config_data["Options"].getboolean("option_max_min"))
 
     # Write output data
     write_output_csv(df=output_df,
@@ -285,14 +296,14 @@ def postprocess(config_data, timeseries, preprocessed_data, topmodel_data):
                      minmax=config_data["Options"].getboolean("option_max_min"))
 
     # Write output data matrices
-    if config_data["Options"].getboolean("option_write_output_matrices"):
-        write_output_matrices_csv(config_data, timeseries, topmodel_data)
+    # if config_data["Options"].getboolean("option_write_output_matrices"):
+    #     write_output_matrices_csv(config_data, timeseries, topmodel_data)
 
     # Plot output data
-    plot_output_data(df=output_df,
-                     comparison_data=output_comparison_data,
-                     path=config_data["Outputs"]["output_dir"],
-                     minmax=config_data["Options"].getboolean("option_max_min"))
+    # plot_output_data(df=output_df,
+    #                  comparison_data=output_comparison_data,
+    #                  path=config_data["Outputs"]["output_dir"],
+    #                  minmax=config_data["Options"].getboolean("option_max_min"))
 
     # Write report of output data
     '''
@@ -356,8 +367,10 @@ def get_output_dataframe(timeseries, preprocessed_data, topmodel_data):
     output_data["saturation_deficit_avgs"] = topmodel_data["saturation_deficit_avgs"]
     output_data["sat_overland_flow"] = topmodel_data["sat_overland_flow"]
     output_data["return_flow"] = topmodel_data["return_flow"]
+    output_data_df = pd.DataFrame(output_data)
+    output_data_df.index = timeseries.index
     #output_data["overland_flow"] = topmodel_data["overland_flow"]
-    output_df = timeseries.assign(**output_data)
+    output_df = timeseries.assign(**output_data_df)
 
     return output_df
 

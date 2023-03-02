@@ -112,6 +112,7 @@ class Topmodel:
         # If option_randomize_daily_to_hourly, then compute updated values for
         # precip_minus_pet, temperature, and timestep_daily_fraction
         # Timestep daily fraction is 3600 seconds per hour / 86400 seconds per day
+        option_randomize_daily_to_hourly = False # AP Added to make daily
         if option_randomize_daily_to_hourly:
             self.option_randomize_daily_to_hourly = option_randomize_daily_to_hourly
             self.pet_hamon = hydrocalcs.chop_daily_to_hourly(pet_hamon)
@@ -776,7 +777,7 @@ class Topmodel:
             # Subsurface flow (base flow)
             # ===========================
 
-            # Calculate the subsurface flow rate - equation 30 in Wolock, 1993
+            # Calculate the subsurface flow rate - equation 30 in Wolock, 1993 # ???
             self.subsurface_flow_rate_ratio = (
                 self.saturation_deficit_avg / self.scaling_parameter
             )
@@ -960,7 +961,8 @@ class Topmodel:
         # ===============
         # If option_randomize_daily_to_hourly is True, then convert back from
         # hourly to daily.
-        self.drop_first = 8760
+        # self.drop_first = 8760
+        # self.drop_first = 365
 
         if self.option_randomize_daily_to_hourly:
             self.flow_predicted = (

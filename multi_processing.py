@@ -5,6 +5,7 @@ Created on Wed Jan 18 08:26:50 2023
 @author: AnthonyPreucil
 """
 
+
 import multiprocessing as mp
 from GenerateInput import input_main
 from drb_geoprocessing import geo_main, files
@@ -80,6 +81,7 @@ def run_one_climbasin(climbasin):
         for lu in land_use:
             
             path = os.path.join(r"D:\WATER_FILES\inputs\Climbasin_inputs\basin_characteristics",climbasin)
+            # main(path,lu) ## For debug
             pool.apply_async(main, args = (path,lu,))
         
         pool.close()
@@ -89,12 +91,14 @@ def run_one_climbasin(climbasin):
 def run_climbasins(pst_basin):
     if __name__ == '__main__':
         basins,watersheds = files()
-        key = basins.overlay(watersheds[['PSTSubNode','geometry']])
+        basins['center'] = basins.centroid
+        key = watersheds.sjoin(basins)
+        node = key[key.PSTSubNode == pst_basin]
+        climbasins = list(node[node.geometry.contains(node.center)].HydroID.values)
         
         num_workers = mp.cpu_count()
         pool = mp.Pool(num_workers)
         
-        climbasins = list(key[key.PSTSubNode == pst_basin].HydroID.values)
         land_use = ['forest','agricultural','developed']
         for climbasin in climbasins:
             path = os.path.join(r"D:\WATER_FILES\inputs\Climbasin_inputs\basin_characteristics",str(climbasin))
@@ -105,9 +109,14 @@ def run_climbasins(pst_basin):
         pool.join()
         
 #%% Run
-# run_water('110')
+# run_water('145')
 # run_waterDRB(['115A','115B'])
-# drb_geoprocess('170')
+# subbasins = [folder for folder in os.listdir("D:\WATER_FILES\BaseV4_2011aLULC") if len(folder)<=4]
+# for b in subbasins:
+#     drb_geoprocess(b)
 # gen_input()
-run_one_climbasin('604')
-# run_climbasins('145')
+# run_one_climbasin('604')
+subbasins = [folder for folder in os.listdir("D:\WATER_FILES\BaseV4_2011aLULC") if len(folder)<=4]
+for b in subbasins:
+    print (b)
+    run_climbasins(b)

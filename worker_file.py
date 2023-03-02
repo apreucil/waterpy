@@ -14,5 +14,6 @@ def main(input_path,lu):
     # Run WATER with current set up
 
     configfile = os.path.join(input_path,"modelconfigfile_"+lu+".ini")
+    print (configfile)
     waterpy(configfile,None)
     
