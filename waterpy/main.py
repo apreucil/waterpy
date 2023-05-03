@@ -255,7 +255,7 @@ def run_topmodel(config_data, parameters, timeseries, twi, preprocessed_data):
         "evaporation_actual": topmodel.evaporation_actual,
         "precip_available": topmodel.precip_available,
         #"q_root": topmodel.q_root,
-        #"sub_flow": topmodel.sub_flow,
+        "sub_flow": topmodel.sub_flow,
         "karst_flow": topmodel.karst_flow,
         "imp_flow": topmodel.flow_predicted_impervious,
         "root_zone_avg": topmodel.root_zone_avg,
@@ -367,6 +367,7 @@ def get_output_dataframe(timeseries, preprocessed_data, topmodel_data):
     output_data["saturation_deficit_avgs"] = topmodel_data["saturation_deficit_avgs"]
     output_data["sat_overland_flow"] = topmodel_data["sat_overland_flow"]
     output_data["return_flow"] = topmodel_data["return_flow"]
+    output_data["sub_flow"] = topmodel_data["sub_flow"]
     output_data_df = pd.DataFrame(output_data)
     output_data_df.index = timeseries.index
     #output_data["overland_flow"] = topmodel_data["overland_flow"]

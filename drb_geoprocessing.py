@@ -196,7 +196,7 @@ def drb_characteristics(db_rasters,basin,path_to_masks,basins,watersheds):
             # show(lu_basin,title='Basin Masked')
             
             lu_area = calc_area(lu_basin,landuse_src.transform)
-
+            
             db_rasters_clip = {}
             db_rasters_clip['area'] = np.ma.array([lu_area],mask=[False])
             for k, v in db_rasters.items():
@@ -249,7 +249,7 @@ def drb_characteristics(db_rasters,basin,path_to_masks,basins,watersheds):
     
         joined_rasters = {key: np.ma.concatenate([d[key].compressed() for d in rasters.values()]) 
                           for key in rasters[list(rasters.keys())[0]].keys()}
-
+        
         characteristics_out = {
             "scaling_parameter": {joined_rasters['scaling_parameter'].mean() / 100},
             "saturated_hydraulic_conductivity": {joined_rasters['k_sat'].mean() / 100 * 86.4},
@@ -279,8 +279,12 @@ def drb_characteristics(db_rasters,basin,path_to_masks,basins,watersheds):
         df = pd.DataFrame.from_dict(characteristics_out, orient="index")
         df.index.name = "name"
         df.columns = ['value']
-    
-        twis[landuse] = calc_twi(joined_rasters["twi"])
+        
+        if joined_rasters['area'].sum() != 0:
+            twis[landuse] = calc_twi(joined_rasters["twi"])
+        else:
+            twis[landuse] = pd.DataFrame()
+            
         chars[landuse] = df
 
     return chars,twis

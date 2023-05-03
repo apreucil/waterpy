@@ -1011,9 +1011,9 @@ class Topmodel:
             # self.q_root = (
             #     hydrocalcs.sum_hourly_to_daily(self.q_root[self.drop_first:])
             # )
-            # self.sub_flow = (
-            #     hydrocalcs.sum_hourly_to_daily(self.sub_flow[self.drop_first:])
-            # )
+            self.sub_flow = (
+                hydrocalcs.sum_hourly_to_daily(self.sub_flow[self.drop_first:])
+            )
             self.return_flow_totals = (
                 hydrocalcs.sum_hourly_to_daily(self.return_flow_totals[self.drop_first:])
             )

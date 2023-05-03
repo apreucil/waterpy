@@ -113,3 +113,7 @@ filtered_raster.tif
 *.dbf
 *.lock
 *.tiff
+*.xlsx
+*.pdf
+*.docx
+*.html
